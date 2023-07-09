@@ -275,8 +275,16 @@ module.exports = {
       }
       if (data != null) {
         const decryptaes = await aesEncryption.decryptData(data.algo2);
-        req.flash('decryptionrecord', decryptaes)
-        res.redirect('/account/file-encryption')
+        req.flash('decryptionrecord',
+          {
+            data: decryptaes,
+            fileType: data.fileType
+          })
+        if (data.fileType == 1) {
+          res.redirect('/account/file-encryption')
+        } else {
+          return res.download(`${__dirname}/../../public/files/${decryptaes}`)
+        }
       } else {
         req.flash('error', "Unknown Data!")
         res.redirect('/account/file-encryption')

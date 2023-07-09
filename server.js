@@ -12,7 +12,7 @@ const bodyParser = require('body-parser');
 const expressValidator = require('express-validator');
 const cors = require('cors');
 const time_ago = require('timeago.js');
-const fileUpload = require('express-fileupload');
+// const fileUpload = require('express-fileupload');
 const useragent = require('express-useragent')
 const Str = require('@supercharge/strings')
 // const helmet = require("helmet");
@@ -20,6 +20,11 @@ const Str = require('@supercharge/strings')
 const routes = require('./routes/index');
 
 const app = express();
+
+const hbs = require('hbs');
+const fs = require('fs');
+const { nextTick } = require('process');
+const { resolve } = require('path');
 
 const corsOptions = {
   origin: 'http://localhost:3000',
@@ -44,13 +49,14 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'hbs');
 
 app.use(bodyParser.json());
+app.use(bodyParser.text({ type: '/' }));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(expressValidator());
 app.use(cookieParser());
 // app.use(csrf({ cookie: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(cors(corsOptions));
-app.use(fileUpload());
+// app.use(fileUpload());
 app.use(useragent.express());
 // app.use(helmet());
 
@@ -208,11 +214,6 @@ app.use(function (req, res) {
 
 
 // Handlebars default config
-const hbs = require('hbs');
-const fs = require('fs');
-const { nextTick } = require('process');
-const { resolve } = require('path');
-
 const partialsDir = __dirname + '/views/partials';
 const filenames = fs.readdirSync(partialsDir);
 

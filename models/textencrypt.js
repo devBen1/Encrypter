@@ -18,6 +18,10 @@ module.exports = (sequelize, DataTypes) => {
     TextEncrypt.init({
         textUniqueID: DataTypes.STRING,
         uId: DataTypes.INTEGER,
+        fileType: {
+            type: DataTypes.INTEGER, // 1 == Text, 2 == Audio, 3 == Video
+            defaultValue: 1,
+        },
         algo1: {
             type: DataTypes.TEXT,
             get: function () {

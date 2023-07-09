@@ -4,6 +4,8 @@ const helperFunctions = require("./../../helpers/HelperFunctions");
 const helperQuery = require("./../../helpers/HelperQuery");
 const models = require('./../../models/index');
 const { Op } = require("sequelize");
+const { unlinkSync } = require("fs");
+
 const AesEncryption = require("./../../helpers/encryptions/aes");
 const Sha512Encryption = require("./../../helpers/encryptions/sha512");
 const ElgamalEncryption = require("./../../helpers/encryptions/elgamal");
@@ -173,12 +175,31 @@ module.exports = {
   },
   addEncryption: async (req, res, next) => {
     try {
-      req.checkBody('encryptTextData', 'Text to encrypt cannot be empty.').trim().escape().notEmpty();
+      if (req.body.fileType) {
+        if (['2', '3'].includes(req.body.fileType)) {
+          req.checkBody('fileType', 'File Type must be integer.').isInt();
+        }
+      } else {
+        req.checkBody('encryptTextData', 'Text to encrypt cannot be empty.').trim().escape().notEmpty();
+      }
 
       const errors = req.validationErrors();
       if (errors) {
         req.flash('errors', errors)
         return res.redirect('/account/file-encryption');
+      }
+
+      if (req.body.fileType) {
+        if (['2', '3'].includes(req.body.fileType)) {
+          const file = req.file;
+          const fileName = file.filename;
+          if (!["application/pdf", "application/msword", "video/mp4", "audio/mp3", "image/png", "image/jpg", "image/jpeg"].includes(file.mimetype)) {
+            unlinkSync(file.path)
+            req.flash('error', "The uploaded file format is not allowed please upload an appropriate file!")
+            return res.redirect('/account/file-encryption');
+          }
+          req.body.encryptTextData = `${fileName}`;
+        }
       }
       req.userAttemptedUser.actionPerformed = `File encryption successful.`;
       const elgamal = await elgamalEncryption.encryptData(req.body.encryptTextData);
@@ -191,6 +212,9 @@ module.exports = {
       const algorithms = {
         textUniqueID: await helperFunctions.randomString(15, "string"),
         uId: res.locals.admin.id,
+        fileType: req.body.fileType !== undefined ?
+          req.body.fileType <= 3 ? req.body.fileType : 1
+          : 1,
         algo1: elgamal,
         key1: elgamal.hashed,
         algo2: aes,
@@ -205,6 +229,9 @@ module.exports = {
       req.flash('success', req.userAttemptedUser.actionPerformed)
       req.flash('encryptionrecord', {
         data: req.body.encryptTextData,
+        fileType: req.body.fileType !== undefined ?
+          req.body.fileType <= 3 ? req.body.fileType : 1
+          : 1,
         elgamal: elgamal.hashed,
         aes: aes.content,
         sha512,
@@ -217,6 +244,7 @@ module.exports = {
   },
   deleteEncryption: async (req, res, next) => {
     try {
+      let data, decryptaes;
       req.checkParams('textUniqueID', 'Invalid Encryption Info.').trim().escape().notEmpty();
 
       const errors = req.validationErrors();
@@ -225,15 +253,43 @@ module.exports = {
         return res.redirect('/account/file-encryption');
       }
       req.userAttemptedUser.actionPerformed = `File deleted successfully.`;
-      await Promise.all([
-        helperQuery.credQuery("TextEncrypt", "destroy", {
-          where: { textUniqueID: req.params.textUniqueID }
-        }),
-        helperFunctions.addPageAudit(req.userAttemptedUser)
-      ]);
 
-      req.flash('success', req.userAttemptedUser.actionPerformed)
-      return res.redirect('/account/file-encryption');
+      if (res.locals.admin.role == 1) {
+        data = await helperQuery.credQuery("TextEncrypt", "findOne", {
+          where: {
+            textUniqueID: req.params.textUniqueID
+          }
+        });
+      } else {
+        data = await helperQuery.credQuery("TextEncrypt", "findOne", {
+          where: {
+            [Op.and]: [
+              { uId: res.locals.admin.id },
+              { textUniqueID: req.params.textUniqueID }
+            ]
+          }
+        });
+      }
+      if (data != null) {
+        if (data.fileType != 1) {
+          decryptaes = await aesEncryption.decryptData(data.algo2);
+        }
+        await Promise.all([
+          helperQuery.credQuery("TextEncrypt", "destroy", {
+            where: { textUniqueID: req.params.textUniqueID }
+          }),
+          helperFunctions.addPageAudit(req.userAttemptedUser)
+        ]);
+        if (data.fileType != 1) {
+          unlinkSync(`${__dirname}/../../public/files/${decryptaes}`)
+        }
+
+        req.flash('success', req.userAttemptedUser.actionPerformed)
+        return res.redirect('/account/file-encryption');
+      } else {
+        req.flash('error', "Unknown Data!")
+        res.redirect('/account/file-encryption')
+      }
     } catch (error) {
       console.log(error)
     }
