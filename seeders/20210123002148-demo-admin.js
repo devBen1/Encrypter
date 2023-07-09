@@ -24,8 +24,8 @@ admins = [...Array(20)].map((user) => ({
 }))
 
 admins.push({
-  fullName: "Blessed",
-  email: "blessed@encryptor.io",
+  fullName: "devBen",
+  email: "devben@encryptor.io",
   position: "Admin",
   role: 1,
   password: bcryptjs.hashSync(process.env.MY_PASSWORD),

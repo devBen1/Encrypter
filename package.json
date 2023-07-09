@@ -10,7 +10,7 @@
     "start": "nodemon",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Imoroa Blessed",
+  "author": "devBen",
   "license": "ISC",
   "dependencies": {
     "@supercharge/strings": "^1.29.0",
